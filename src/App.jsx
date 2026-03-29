@@ -1,8 +1,30 @@
 import { useState, useEffect } from 'react'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 import {
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   ResponsiveContainer
 } from 'recharts'
+
+const SYSTEM_PROMPT = `You are a blunt career advisor for senior operators targeting GM and COO roles. Score this role fit with brutal honesty. Return ONLY a JSON object with this exact structure:
+{
+  "scores": { "scope": n, "operator": n, "brand": n, "comp": n, "equity": n, "background": n },
+  "overall": n,
+  "reasons_to_take": ["array of 3-5 strings"],
+  "reasons_to_pass": ["array of 3-5 strings"],
+  "verdict": "string - one paragraph bottom-line verdict"
+}
+
+Scoring dimensions (each 1-10):
+1. Scope Match (scope) - team size, budget, cross-functional ownership
+2. Operator Muscle-Building (operator) - does it build toward GM/COO?
+3. Company Brand & Exit Optionality (brand)
+4. Compensation Trajectory (comp)
+5. Pre-IPO / Equity Upside (equity)
+6. Background Alignment (background) - direct experience match
+
+Overall is a weighted score out of 100.
+
+No preamble. No markdown. No code fences. JSON only.`
 
 const DIMENSION_LABELS = {
   scope: 'Scope Match',
@@ -89,25 +111,27 @@ export default function App() {
     setResult(null)
 
     try {
-      const res = await fetch('/api/score', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          apiKey: apiKey.trim(),
-          resume: resume.trim(),
-          jobDescription: jobDescription.trim(),
-        }),
+      const genAI = new GoogleGenerativeAI(apiKey.trim())
+      const model = genAI.getGenerativeModel({
+        model: 'gemini-2.0-flash',
+        generationConfig: { responseMimeType: 'application/json' },
       })
 
-      const data = await res.json()
+      const result = await model.generateContent([
+        { text: SYSTEM_PROMPT },
+        { text: `RESUME/BIO:\n${resume.trim()}\n\nJOB DESCRIPTION:\n${jobDescription.trim()}` },
+      ])
 
-      if (!res.ok) {
-        throw new Error(data.error || 'Something went wrong')
-      }
-
-      setResult(data)
+      const text = result.response.text()
+      const parsed = JSON.parse(text)
+      setResult(parsed)
     } catch (err) {
-      setError(err.message)
+      const msg = err.message || 'Something went wrong'
+      if (msg.includes('API_KEY_INVALID') || msg.includes('API key')) {
+        setError('Invalid API key. Get a free key at https://aistudio.google.com/apikey')
+      } else {
+        setError(msg)
+      }
     } finally {
       setLoading(false)
     }
