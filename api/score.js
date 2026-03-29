@@ -1,20 +1,17 @@
-import express from 'express';
-import cors from 'cors';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
 
-const app = express();
-app.use(cors());
-app.use(express.json({ limit: '1mb' }));
+  const { apiKey, resume, jobDescription } = req.body;
 
-// Serve built frontend in production
-app.use(express.static(join(__dirname, 'dist')));
+  if (!apiKey || !resume || !jobDescription) {
+    return res.status(400).json({ error: 'Missing required fields: apiKey, resume, jobDescription' });
+  }
 
-const SYSTEM_PROMPT = `You are a blunt career advisor for senior operators targeting GM and COO roles. Score this role fit with brutal honesty. Return ONLY a JSON object with this exact structure:
+  const systemPrompt = `You are a blunt career advisor for senior operators targeting GM and COO roles. Score this role fit with brutal honesty. Return ONLY a JSON object with this exact structure:
 {
   "scores": { "scope": n, "operator": n, "brand": n, "comp": n, "equity": n, "background": n },
   "overall": n,
@@ -35,13 +32,6 @@ Overall is a weighted score out of 100.
 
 No preamble. No markdown. No code fences. JSON only.`;
 
-app.post('/api/score', async (req, res) => {
-  const { apiKey, resume, jobDescription } = req.body;
-
-  if (!apiKey || !resume || !jobDescription) {
-    return res.status(400).json({ error: 'Missing required fields: apiKey, resume, jobDescription' });
-  }
-
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
@@ -52,13 +42,13 @@ app.post('/api/score', async (req, res) => {
     });
 
     const result = await model.generateContent([
-      { text: SYSTEM_PROMPT },
+      { text: systemPrompt },
       { text: `RESUME/BIO:\n${resume}\n\nJOB DESCRIPTION:\n${jobDescription}` },
     ]);
 
     const text = result.response.text();
     const parsed = JSON.parse(text);
-    return res.json(parsed);
+    return res.status(200).json(parsed);
   } catch (err) {
     console.error('Score error:', err);
     const message = err.message || 'Internal server error';
@@ -67,14 +57,4 @@ app.post('/api/score', async (req, res) => {
     }
     return res.status(500).json({ error: message });
   }
-});
-
-// Fallback to index.html for SPA routing in production
-app.get('*', (req, res) => {
-  res.sendFile(join(__dirname, 'dist', 'index.html'));
-});
-
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`Proxy server running on http://localhost:${PORT}`);
-});
+}

@@ -76,7 +76,7 @@ export default function App() {
 
   async function handleScore() {
     if (!apiKey.trim()) {
-      setError('Please enter your Anthropic API key.')
+      setError('Please enter your Google AI API key. Get one free at https://aistudio.google.com/apikey')
       return
     }
     if (!resume.trim() || !jobDescription.trim()) {
@@ -137,14 +137,14 @@ export default function App() {
         {/* API Key */}
         <div className="mb-6 bg-[#111] border border-gray-800 rounded-xl p-4">
           <label className="block text-sm font-medium text-gray-400 mb-2">
-            Anthropic API Key
+            Google AI API Key <span className="text-green-400 font-normal">(free)</span>
           </label>
           <div className="flex gap-2">
             <input
               type={showApiKey ? 'text' : 'password'}
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder="sk-ant-..."
+              placeholder="AIza..."
               className="flex-1 bg-[#1a1a1a] border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm placeholder-gray-500"
             />
             <button
@@ -155,7 +155,11 @@ export default function App() {
             </button>
           </div>
           <p className="text-xs text-gray-500 mt-2">
-            Your key is never stored — it's only used for this session. Cost: ~$0.01 per scoring.
+            Powered by Gemini Flash — completely free. Get your key at{' '}
+            <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="text-gold-400 underline hover:text-gold-300">
+              aistudio.google.com/apikey
+            </a>
+            . Your key is never stored.
           </p>
         </div>
 
